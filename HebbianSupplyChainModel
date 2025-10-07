@@ -1,0 +1,87 @@
+import numpy as np
+
+class HebbianSupplyChainModel:
+    def __init__(self, countries, eta=0.01):
+        """
+        Initialize the Hebbian learning model for agriculture supply chain.
+        
+        :param countries: List of country names (nodes in the supply chain network)
+        :param eta: Learning rate for Hebbian update
+        """
+        self.countries = countries
+        self.num_countries = len(countries)
+        self.eta = eta
+        self.W = np.zeros((self.num_countries, self.num_countries))  # Weight matrix for connections
+
+    def train(self, data):
+        """
+        Train the model using Hebbian learning on production data.
+        
+        :param data: numpy array of shape (time_steps, num_countries) representing normalized production levels
+        """
+        time_steps = data.shape[0]
+        for t in range(time_steps):
+            a = data[t]  # Activity vector at time t
+            delta_W = self.eta * np.outer(a, a)  # Hebbian update
+            self.W += delta_W
+            # Normalize to prevent unbounded growth
+            max_w = np.max(self.W)
+            if max_w != 0:
+                self.W /= max_w
+
+    def get_connections(self):
+        """
+        Return the learned connection strengths as a dictionary.
+        """
+        connections = {}
+        for i in range(self.num_countries):
+            for j in range(i + 1, self.num_countries):
+                key = f"{self.countries[i]} - {self.countries[j]}"
+                connections[key] = self.W[i, j]
+        return connections
+
+    def predict_dependency(self, country1, country2):
+        """
+        Predict the dependency strength between two countries.
+        """
+        i = self.countries.index(country1)
+        j = self.countries.index(country2)
+        return self.W[i, j]
+
+# Example usage
+if __name__ == "__main__":
+    # List of major agricultural countries
+    countries = ['USA', 'Brazil', 'India', 'China', 'Russia', 'Argentina']
+    
+    # Parameters
+    num_countries = len(countries)
+    time_steps = 100  # Number of time steps (e.g., months or years)
+    eta = 0.01  # Learning rate
+    
+    # Simulated production data (in real use, load from FAO or similar sources)
+    # Here, random data normalized between 0 and 1 representing production levels
+    np.random.seed(42)
+    data = np.random.rand(time_steps, num_countries)
+    
+    # Create and train the model
+    model = HebbianSupplyChainModel(countries, eta)
+    model.train(data)
+    
+    # Get learned connections
+    connections = model.get_connections()
+    
+    # Print results
+    print("Learned Supply Chain Dependencies (Connection Strengths):")
+    for pair, strength in sorted(connections.items(), key=lambda x: x[1], reverse=True):
+        print(f"{pair}: {strength:.4f}")
+    
+    # Example prediction
+    print("\nExample Dependency Prediction:")
+    print(f"Dependency between USA and Brazil: {model.predict_dependency('USA', 'Brazil'):.4f}")
+
+# Explanation:
+# This software models the global agriculture supply chain as a network where nodes are countries.
+# Hebbian learning is applied to adjust connection strengths based on correlations in production data.
+# Stronger connections indicate higher dependencies or co-occurrences in supply patterns.
+# In a real-world application, replace simulated data with actual time-series data from sources like FAO.
+# This can help in identifying key trade links, predicting disruptions, or optimizing supply routes.
